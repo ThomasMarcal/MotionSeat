@@ -1,64 +1,9 @@
-﻿/*
-
-  -----------------------------------------------------------------------------
-  ⚠️  WARNING – DO NOT MODIFY THIS FILE UNLESS YOU KNOW EXACTLY WHAT YOU'RE DOING
-  -----------------------------------------------------------------------------
-
-===============================================================================
-  DBOX TCP MONITORING CLIENT – Dbox.TCP.cs
-===============================================================================
-
-  This class provides a fully managed TCP client designed to interface with 
-  the DBOX Haptic Monitoring Server. It enables the retrieval, parsing, and 
-  monitoring of real-time seat feedback data via XML-based TCP communication.
-
-  The MonitoringClient is intended to be embedded in simulation or plugin 
-  environments (e.g., MotionBridge, UI controllers) to track seat telemetry,
-  status values, or perform low-level field queries via string-based requests.
-
-  -------------------------------------------------------------------------------
-  FUNCTIONAL OVERVIEW:
-  -------------------------------------------------------------------------------
-
-  - Establishes and manages a TCP socket connection to the DBOX Haptic Bridge
-  - Automatically reconnects on failure (if enabled)
-  - Sends ASCII-formatted XML commands and receives responses
-  - Handles asynchronous message transmission and reception
-  - Parses XML to extract float, string or description data from <Field> entries
-
-  The client is lightweight, headless, and fully asynchronous to allow seamless
-  integration into user interfaces, background workers, or plugin controllers.
-
-  -------------------------------------------------------------------------------
-  TECHNICAL DEPENDENCIES:
-  -------------------------------------------------------------------------------
-
-  - System.Net.Sockets.TcpClient for connection handling
-  - System.Xml.Linq for XML parsing and field extraction
-  - Encoding: ASCII (message encoding/decoding)
-  - Compatible with DBOX Field API format (e.g., <Request Cmd="GetStatus" />)
-
-  ⚠️  WARNING:
-  - Always check for null or empty responses before attempting to parse
-  - Use culture-safe float conversion if localization is enabled
-  - Avoid blocking UI threads with synchronous calls
-
-  -------------------------------------------------------------------------------
-  AUTHOR / MAINTAINER:
-  -------------------------------------------------------------------------------
-
-  - Developer: DAVAIL Nicolas (ALSTOM), MARCAL Thomas (ALSTOM), ALBE Alexis (DBOX)
-  - Last updated: 22/04/2025
-  - Project: Alstom T&S - DBOX Motion Seat Integration Plugin
-
-===============================================================================
-*/
-
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Sockets;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 
@@ -259,32 +204,63 @@ namespace DBox.TCP
         /// This method ensures the connection is alive before sending.
         /// In case of communication failure, the connection will be closed and an error message returned.
         /// </remarks>
-        
-        internal async Task<string> SendMessageWaitForAnswer(string message, int receptionBufferLength = 10000000)
+
+        private readonly SemaphoreSlim writeLock = new SemaphoreSlim(1, 1);
+        private readonly SemaphoreSlim readLock = new SemaphoreSlim(1, 1);
+
+        internal async Task<string> SendMessageWaitForAnswer(string message, int receptionBufferLength = 4096)
         {
             if (!await EnsureConnected())
-            {
                 return "[SendMessage] Unable to connect to the server.";
-            }
 
             try
             {
                 byte[] data = Encoding.ASCII.GetBytes(message);
-                await stream.WriteAsync(data, 0, data.Length);
-                //Console.WriteLine("[Client] Message sent to server.");
+
+                await writeLock.WaitAsync();
+                try
+                {
+                    await stream.WriteAsync(data, 0, data.Length);
+                    Console.WriteLine($"[Client] Message sent to {Server}:{Port}.");
+                }
+                finally
+                {
+                    writeLock.Release();
+                }
 
                 byte[] buffer = new byte[receptionBufferLength];
-                int bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length);
+                int bytesRead = 0;
+
+                await readLock.WaitAsync();
+                CancellationTokenSource cts = new CancellationTokenSource(3000); // Timeout lecture
+                try
+                {
+                    bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length, cts.Token);
+                }
+                catch (OperationCanceledException)
+                {
+                    Console.WriteLine("[Client] Read timed out.");
+                    return "[SendMessage] Timeout waiting for server response.";
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[ERROR][Read] {ex.Message}");
+                    return $"[SendMessage Exception] {ex.Message}";
+                }
+                finally
+                {
+                    readLock.Release();
+                    cts.Dispose();
+                }
 
                 if (bytesRead == 0)
                 {
-                    Console.WriteLine("[Client] Warning: Server closed the connection.");
+                    Console.WriteLine("[Client] Server closed the connection.");
                     Disconnect();
                     return "[SendMessage] Connection closed by server.";
                 }
 
                 string response = Encoding.ASCII.GetString(buffer, 0, bytesRead);
-                //Console.WriteLine($"[Client] Response received: {response}");
                 MessageReceived?.Invoke(response);
                 return response;
             }
@@ -295,55 +271,6 @@ namespace DBox.TCP
                 return $"[SendMessage Exception] {ex.Message}";
             }
         }
-        /*
-
-        internal async Task<string> SendMessageWaitForAnswer(string message, string endTag = "</Reply>")
-        {
-            if (!await EnsureConnected())
-                return "[SendMessage] Unable to connect to the server.";
-
-            try
-            {
-                // Envoi du message
-                byte[] data = Encoding.ASCII.GetBytes(message);
-                await stream.WriteAsync(data, 0, data.Length);
-                Console.WriteLine("[Client] Message sent to server.");
-
-                // Lecture en boucle jusqu'à détection du endTag
-                var buffer = new byte[1024];
-                var responseBuilder = new StringBuilder();
-
-                while (true)
-                {
-                    int bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length);
-                    if (bytesRead == 0)
-                    {
-                        Console.WriteLine("[Client] Server closed the connection.");
-                        Disconnect();
-                        return "[SendMessage] Connection closed by server.";
-                    }
-
-                    string part = Encoding.ASCII.GetString(buffer, 0, bytesRead);
-                    responseBuilder.Append(part);
-
-                    // Vérifie si le message contient la fin du XML
-                    if (responseBuilder.ToString().Contains(endTag))
-                        break;
-                }
-
-                string fullResponse = responseBuilder.ToString();
-                MessageReceived?.Invoke(fullResponse);
-                return fullResponse;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[ERROR][SendMessage] {ex.Message}");
-                Disconnect();
-                return $"[SendMessage Exception] {ex.Message}";
-            }
-        }
-        */
-
 
         /// <summary>
         /// Helper method to send a message in one step (connect + send + receive).

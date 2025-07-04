@@ -62,14 +62,13 @@
             // UpdateTimer
             // 
             this.UpdateTimer.Enabled = true;
-            this.UpdateTimer.Interval = 20;
             this.UpdateTimer.Tick += new System.EventHandler(this.UpdateTimer_Tick);
             // 
             // TickIndicator
             // 
             this.TickIndicator.BackColor = System.Drawing.Color.DarkGray;
             this.TickIndicator.Location = new System.Drawing.Point(18, 23);
-            this.TickIndicator.Margin = new System.Windows.Forms.Padding(6, 6, 6, 6);
+            this.TickIndicator.Margin = new System.Windows.Forms.Padding(6);
             this.TickIndicator.Name = "TickIndicator";
             this.TickIndicator.Size = new System.Drawing.Size(20, 8);
             this.TickIndicator.TabIndex = 1;
@@ -78,7 +77,7 @@
             // 
             this.TickLabel.AutoSize = true;
             this.TickLabel.Font = new System.Drawing.Font("Microsoft Sans Serif", 7F, System.Drawing.FontStyle.Italic, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.TickLabel.Location = new System.Drawing.Point(44, 14);
+            this.TickLabel.Location = new System.Drawing.Point(44, 13);
             this.TickLabel.Margin = new System.Windows.Forms.Padding(6, 0, 6, 0);
             this.TickLabel.Name = "TickLabel";
             this.TickLabel.Size = new System.Drawing.Size(120, 24);
@@ -89,7 +88,7 @@
             // 
             this.ConsoleRedirectionLabel.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
             this.ConsoleRedirectionLabel.Font = new System.Drawing.Font("Microsoft Sans Serif", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.ConsoleRedirectionLabel.Location = new System.Drawing.Point(688, 309);
+            this.ConsoleRedirectionLabel.Location = new System.Drawing.Point(688, 310);
             this.ConsoleRedirectionLabel.Margin = new System.Windows.Forms.Padding(6, 0, 6, 0);
             this.ConsoleRedirectionLabel.Name = "ConsoleRedirectionLabel";
             this.ConsoleRedirectionLabel.Size = new System.Drawing.Size(812, 121);
@@ -100,7 +99,7 @@
             // 
             this.MotionSeatData.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
             this.MotionSeatData.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.MotionSeatData.Location = new System.Drawing.Point(688, 109);
+            this.MotionSeatData.Location = new System.Drawing.Point(688, 110);
             this.MotionSeatData.Margin = new System.Windows.Forms.Padding(6, 0, 6, 0);
             this.MotionSeatData.Name = "MotionSeatData";
             this.MotionSeatData.Size = new System.Drawing.Size(422, 179);
@@ -111,7 +110,7 @@
             // 
             this.SimulationLabel.AutoSize = true;
             this.SimulationLabel.Font = new System.Drawing.Font("Microsoft Sans Serif", 7F, System.Drawing.FontStyle.Italic, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.SimulationLabel.Location = new System.Drawing.Point(680, 14);
+            this.SimulationLabel.Location = new System.Drawing.Point(680, 13);
             this.SimulationLabel.Margin = new System.Windows.Forms.Padding(6, 0, 6, 0);
             this.SimulationLabel.Name = "SimulationLabel";
             this.SimulationLabel.Size = new System.Drawing.Size(97, 24);
@@ -126,10 +125,10 @@
             this.StartStopButton.Cursor = System.Windows.Forms.Cursors.Hand;
             this.StartStopButton.FlatAppearance.BorderSize = 0;
             this.StartStopButton.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.StartStopButton.Location = new System.Drawing.Point(1604, 186);
-            this.StartStopButton.Margin = new System.Windows.Forms.Padding(6, 6, 6, 6);
+            this.StartStopButton.Location = new System.Drawing.Point(1604, 187);
+            this.StartStopButton.Margin = new System.Windows.Forms.Padding(6);
             this.StartStopButton.Name = "StartStopButton";
-            this.StartStopButton.Size = new System.Drawing.Size(178, 203);
+            this.StartStopButton.Size = new System.Drawing.Size(178, 204);
             this.StartStopButton.TabIndex = 18;
             this.SeatUITooltip.SetToolTip(this.StartStopButton, "Toggle ON/OFF the Seat");
             this.StartStopButton.UseVisualStyleBackColor = false;
@@ -139,7 +138,7 @@
             // 
             this.SimulationIndicator.BackColor = System.Drawing.Color.DarkGray;
             this.SimulationIndicator.Location = new System.Drawing.Point(656, 23);
-            this.SimulationIndicator.Margin = new System.Windows.Forms.Padding(6, 6, 6, 6);
+            this.SimulationIndicator.Margin = new System.Windows.Forms.Padding(6);
             this.SimulationIndicator.Name = "SimulationIndicator";
             this.SimulationIndicator.Size = new System.Drawing.Size(20, 8);
             this.SimulationIndicator.TabIndex = 3;
@@ -156,8 +155,8 @@
             this.DetailCheckbox.Checked = true;
             this.DetailCheckbox.CheckState = System.Windows.Forms.CheckState.Checked;
             this.DetailCheckbox.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.DetailCheckbox.Location = new System.Drawing.Point(1592, 9);
-            this.DetailCheckbox.Margin = new System.Windows.Forms.Padding(6, 6, 6, 6);
+            this.DetailCheckbox.Location = new System.Drawing.Point(1592, 10);
+            this.DetailCheckbox.Margin = new System.Windows.Forms.Padding(6);
             this.DetailCheckbox.Name = "DetailCheckbox";
             this.DetailCheckbox.Size = new System.Drawing.Size(186, 33);
             this.DetailCheckbox.TabIndex = 22;
@@ -168,14 +167,14 @@
             // 
             // MonitoringTimer
             // 
-            this.MonitoringTimer.Interval = 2000;
+            this.MonitoringTimer.Interval = 5000;
             // 
             // UseTCPCheckbox
             // 
             this.UseTCPCheckbox.AutoSize = true;
             this.UseTCPCheckbox.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.UseTCPCheckbox.Location = new System.Drawing.Point(1294, 9);
-            this.UseTCPCheckbox.Margin = new System.Windows.Forms.Padding(6, 6, 6, 6);
+            this.UseTCPCheckbox.Location = new System.Drawing.Point(1294, 10);
+            this.UseTCPCheckbox.Margin = new System.Windows.Forms.Padding(6);
             this.UseTCPCheckbox.Name = "UseTCPCheckbox";
             this.UseTCPCheckbox.Size = new System.Drawing.Size(263, 33);
             this.UseTCPCheckbox.TabIndex = 32;
@@ -189,7 +188,7 @@
             // 
             this.TCPLabel.AutoSize = true;
             this.TCPLabel.Font = new System.Drawing.Font("Microsoft Sans Serif", 7F, System.Drawing.FontStyle.Italic, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.TCPLabel.Location = new System.Drawing.Point(472, 14);
+            this.TCPLabel.Location = new System.Drawing.Point(472, 13);
             this.TCPLabel.Margin = new System.Windows.Forms.Padding(6, 0, 6, 0);
             this.TCPLabel.Name = "TCPLabel";
             this.TCPLabel.Size = new System.Drawing.Size(141, 24);
@@ -200,7 +199,7 @@
             // 
             this.TCPIndicator.BackColor = System.Drawing.Color.DarkGray;
             this.TCPIndicator.Location = new System.Drawing.Point(446, 23);
-            this.TCPIndicator.Margin = new System.Windows.Forms.Padding(6, 6, 6, 6);
+            this.TCPIndicator.Margin = new System.Windows.Forms.Padding(6);
             this.TCPIndicator.Name = "TCPIndicator";
             this.TCPIndicator.Size = new System.Drawing.Size(20, 8);
             this.TCPIndicator.TabIndex = 3;
@@ -212,10 +211,10 @@
             this.ResponseButton.Cursor = System.Windows.Forms.Cursors.Hand;
             this.ResponseButton.FlatAppearance.BorderSize = 0;
             this.ResponseButton.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.ResponseButton.Location = new System.Drawing.Point(388, 178);
-            this.ResponseButton.Margin = new System.Windows.Forms.Padding(6, 6, 6, 6);
+            this.ResponseButton.Location = new System.Drawing.Point(388, 179);
+            this.ResponseButton.Margin = new System.Windows.Forms.Padding(6);
             this.ResponseButton.Name = "ResponseButton";
-            this.ResponseButton.Size = new System.Drawing.Size(178, 203);
+            this.ResponseButton.Size = new System.Drawing.Size(178, 204);
             this.ResponseButton.TabIndex = 20;
             this.SeatUITooltip.SetToolTip(this.ResponseButton, "Change the seat reaction time and smoothing");
             this.ResponseButton.Click += new System.EventHandler(this.ResponseButton_Click);
@@ -227,10 +226,10 @@
             this.MotionLockButton.Cursor = System.Windows.Forms.Cursors.Hand;
             this.MotionLockButton.FlatAppearance.BorderSize = 0;
             this.MotionLockButton.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.MotionLockButton.Location = new System.Drawing.Point(116, 178);
-            this.MotionLockButton.Margin = new System.Windows.Forms.Padding(6, 6, 6, 6);
+            this.MotionLockButton.Location = new System.Drawing.Point(116, 179);
+            this.MotionLockButton.Margin = new System.Windows.Forms.Padding(6);
             this.MotionLockButton.Name = "MotionLockButton";
-            this.MotionLockButton.Size = new System.Drawing.Size(178, 203);
+            this.MotionLockButton.Size = new System.Drawing.Size(178, 204);
             this.MotionLockButton.TabIndex = 19;
             this.SeatUITooltip.SetToolTip(this.MotionLockButton, "Allow the simulation to drive the seat");
             this.MotionLockButton.Click += new System.EventHandler(this.MotionButton_Click);
@@ -248,8 +247,8 @@
             this.IndicatorPanel.Controls.Add(this.UseTCPCheckbox);
             this.IndicatorPanel.Controls.Add(this.SimulationLabel);
             this.IndicatorPanel.Controls.Add(this.TCPIndicator);
-            this.IndicatorPanel.Location = new System.Drawing.Point(64, 447);
-            this.IndicatorPanel.Margin = new System.Windows.Forms.Padding(6, 6, 6, 6);
+            this.IndicatorPanel.Location = new System.Drawing.Point(64, 446);
+            this.IndicatorPanel.Margin = new System.Windows.Forms.Padding(6);
             this.IndicatorPanel.Name = "IndicatorPanel";
             this.IndicatorPanel.Size = new System.Drawing.Size(1790, 52);
             this.IndicatorPanel.TabIndex = 35;
@@ -258,7 +257,7 @@
             // 
             this.RemoteLabel.AutoSize = true;
             this.RemoteLabel.Font = new System.Drawing.Font("Microsoft Sans Serif", 7F, System.Drawing.FontStyle.Italic, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.RemoteLabel.Location = new System.Drawing.Point(244, 14);
+            this.RemoteLabel.Location = new System.Drawing.Point(244, 13);
             this.RemoteLabel.Margin = new System.Windows.Forms.Padding(6, 0, 6, 0);
             this.RemoteLabel.Name = "RemoteLabel";
             this.RemoteLabel.Size = new System.Drawing.Size(141, 24);
@@ -269,7 +268,7 @@
             // 
             this.RemoteIndicator.BackColor = System.Drawing.Color.DarkGray;
             this.RemoteIndicator.Location = new System.Drawing.Point(218, 23);
-            this.RemoteIndicator.Margin = new System.Windows.Forms.Padding(6, 6, 6, 6);
+            this.RemoteIndicator.Margin = new System.Windows.Forms.Padding(6);
             this.RemoteIndicator.Name = "RemoteIndicator";
             this.RemoteIndicator.Size = new System.Drawing.Size(20, 8);
             this.RemoteIndicator.TabIndex = 5;
@@ -277,12 +276,13 @@
             // RemoteTimer
             // 
             this.RemoteTimer.Enabled = true;
+            this.RemoteTimer.Interval = 1000;
             this.RemoteTimer.Tick += new System.EventHandler(this.RemoteTimer_Tick);
             // 
             // OverallLabel
             // 
             this.OverallLabel.AutoSize = true;
-            this.OverallLabel.Location = new System.Drawing.Point(1152, 184);
+            this.OverallLabel.Location = new System.Drawing.Point(1152, 185);
             this.OverallLabel.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.OverallLabel.Name = "OverallLabel";
             this.OverallLabel.Size = new System.Drawing.Size(136, 25);
@@ -293,7 +293,7 @@
             // isDBoxConnected
             // 
             this.isDBoxConnected.AutoSize = true;
-            this.isDBoxConnected.Location = new System.Drawing.Point(1152, 109);
+            this.isDBoxConnected.Location = new System.Drawing.Point(1152, 110);
             this.isDBoxConnected.Margin = new System.Windows.Forms.Padding(6, 0, 6, 0);
             this.isDBoxConnected.Name = "isDBoxConnected";
             this.isDBoxConnected.Size = new System.Drawing.Size(181, 25);
@@ -315,7 +315,7 @@
             // StreamModeLabel
             // 
             this.StreamModeLabel.AutoSize = true;
-            this.StreamModeLabel.Location = new System.Drawing.Point(1152, 222);
+            this.StreamModeLabel.Location = new System.Drawing.Point(1152, 221);
             this.StreamModeLabel.Margin = new System.Windows.Forms.Padding(6, 0, 6, 0);
             this.StreamModeLabel.Name = "StreamModeLabel";
             this.StreamModeLabel.Size = new System.Drawing.Size(140, 25);
@@ -353,7 +353,7 @@
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(80)))), ((int)(((byte)(80)))), ((int)(((byte)(80)))));
             this.BackgroundImage = global::Alstom.MotionSeatPlugin.Properties.Resources.InterfaceMotionSeat;
-            this.ClientSize = new System.Drawing.Size(1922, 578);
+            this.ClientSize = new System.Drawing.Size(1922, 579);
             this.ControlBox = false;
             this.Controls.Add(this.SpeedLabel);
             this.Controls.Add(this.WeightsLabel);
@@ -370,7 +370,7 @@
             this.ForeColor = System.Drawing.SystemColors.ControlLightLight;
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.None;
             this.Location = new System.Drawing.Point(700, 700);
-            this.Margin = new System.Windows.Forms.Padding(6, 6, 6, 6);
+            this.Margin = new System.Windows.Forms.Padding(6);
             this.MaximizeBox = false;
             this.Name = "MotionSeatControl";
             this.StartPosition = System.Windows.Forms.FormStartPosition.Manual;

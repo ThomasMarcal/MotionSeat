@@ -415,13 +415,13 @@ namespace Alstom.MotionSeatPlugin
         {
             MotionSeatData.Visible = DetailCheckbox.Checked;
             ConsoleRedirectionLabel.Visible = DetailCheckbox.Checked;
-            SpeedLabel.Visible = DetailCheckbox.Checked;
+            //SpeedLabel.Visible = DetailCheckbox.Checked;
             OverallLabel.Visible = DetailCheckbox.Checked;
             isDBoxConnected.Visible = DetailCheckbox.Checked;
             isCommunicatedLabel.Visible = DetailCheckbox.Checked;
             StreamModeLabel.Visible = DetailCheckbox.Checked;
             WeightsLabel.Visible = DetailCheckbox.Checked;
-            UseTCPCheckbox.Visible = DetailCheckbox.Checked;
+            //UseTCPCheckbox.Visible = DetailCheckbox.Checked;
         }
 
         #region moving the UI

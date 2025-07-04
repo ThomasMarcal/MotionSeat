@@ -1,8 +1,10 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Drawing;
-using System.Threading.Tasks;
+using System.Threading;
 using Alstom.MotionSeatPlugin.TCP;
-using DBox.MotionSeat;
+using System.Threading.Tasks;
+
 
 namespace Alstom.MotionSeatPlugin
 {
@@ -48,26 +50,20 @@ namespace Alstom.MotionSeatPlugin
 
         #region Timer Functions
 
+        /// <summary>
+        /// Periodic timer for local seat update and UI blink indicator.
+        /// </summary>
         private void UpdateTimer_Tick(object sender, EventArgs e)
         {
-
-            if (SessionIndex != -1)
-                return;
-            
-
             try
             {
-                // Envoie uniquement les consignes si l’état est correct
-                if (Status == SeatStatus.PLAYING && MotionFlag)
-                {
-                    Update_Local_Seat_Continuous();
-                }
+                Update_Local_Seat_Continuous();
+                TickIndicator.BackColor = evenTick ? color1 : color2;
+                evenTick = !evenTick;
 
                 if (this.Visible)
                 {
                     Update_UI();
-                    TickIndicator.BackColor = evenTick ? color1 : color2;
-                    evenTick = !evenTick;
                 }
             }
             catch (Exception ex)
@@ -76,8 +72,6 @@ namespace Alstom.MotionSeatPlugin
             }
         }
 
-
-
         /// <summary>
         /// Periodic timer for fetching seat telemetry from DBOX TCP monitoring system.
         /// </summary>
@@ -85,72 +79,65 @@ namespace Alstom.MotionSeatPlugin
         {
             if (monitoringTcpLock) return;
 
-            _ = Task.Run(async () =>
+            monitoringTcpLock = true;
+            try
             {
-                monitoringTcpLock = true;
                 TCPIndicator.BackColor = color2;
-
-                try
-                {
-                    await motionSeat.GetFullMonitoringPayload().ConfigureAwait(false);
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"[MonitoringTimer ERROR] {ex.Message}");
-                }
-                finally
-                {
-                    TCPIndicator.BackColor = color1;
-                    monitoringTcpLock = false;
-                }
-            });
+                await motionSeat.GetFullMonitoringPayload();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[MonitoringTimer ERROR] {ex.Message}");
+            }
+            finally
+            {
+                TCPIndicator.BackColor = color1;
+                monitoringTcpLock = false;
+            }
         }
 
-
-
-        private int remoteTickCounter = 0; // Counter for timing DATA command (every 100ms tick)
 
         /// <summary>
         /// Timer callback that runs every 100ms to handle remote seat control.
         /// Receives remote TCP commands and executes them on the local seat.
-        /// The 'DATA' command is rate-limited to once every 1000ms.
         /// </summary>
         private async void RemoteTimer_Tick(object sender, EventArgs e)
         {
-            /*
-            if (SessionIndex != 0)
+            if (SessionIndex != -1)
+            {
+                UpdateSeatInfoWithIndex();
                 return;
-            */
-
-            // UI feedback – clignotement visuel
-            remoteTick = !remoteTick;
-            RemoteIndicator.BackColor = remoteTick ? color1 : color2;
-
-            // Déléguer à une tâche séparée pour ne jamais bloquer le timer
-            _ = HandleRemoteCommandAsync();
-        }
-
-        private async Task HandleRemoteCommandAsync()
-        {
-            try
+            }
+            else
             {
-                await UpdateSeatInfoWithIndex();
-
-                string command = await tcpListener.ReadOnly();
-
-                if (!string.IsNullOrWhiteSpace(command))
+                try
                 {
-                    var commandType = MessageConverter.GetCommandType(command);
-                    ExecuteRemoteCommandOnLocal(commandType);
-                }
+                    // Update seat index and tick counter
+                    UpdateSeatInfoWithIndex();
 
-                await Task.Delay(5);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[REMOTE ERROR] {ex.Message}");
+                    // Read incoming message
+                    string command = await tcpListener.ReadOnly();
+
+                    if (!string.IsNullOrWhiteSpace(command))
+                    {
+                        var commandType = MessageConverter.GetCommandType(command);
+
+                        
+                        Console.WriteLine($"[REMOTE] Command received: {commandType}");
+                        ExecuteRemoteCommandOnLocal(commandType);
+                    }
+
+                    // Toggle UI indicator light
+                    remoteTick = !remoteTick;
+                    RemoteIndicator.BackColor = remoteTick ? color1 : color2;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[REMOTE ERROR] Failed to execute remote command: {ex.Message}");
+                }
             }
         }
+
 
         #endregion
 

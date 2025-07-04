@@ -28,6 +28,11 @@ namespace Alstom.MotionSeatPlugin
                 { this.Location = new Point(Int32.Parse(parse[0]), Int32.Parse(parse[1])); }
                 catch { Console.WriteLine("Cannot apply old location. Default one will be used."); }
             }
+            else
+            {
+                Console.WriteLine($"No saved location found. Defaulting to 0,0.");
+                this.Location = new Point(0, 0);
+            }
         }
 
         private void PopUp_ButtonOk_Click(object sender, EventArgs e)

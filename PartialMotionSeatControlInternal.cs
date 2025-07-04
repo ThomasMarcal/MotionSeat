@@ -32,7 +32,6 @@ namespace Alstom.MotionSeatPlugin
             localRailPitch, localRailRoll,
             localVelocityX, localVelocityY, localVelocityZ;
 
-
         /// <summary>
         /// Index of the session (cabin) being controlled:  
         /// –1 = this plugin’s own seat (local mode),  
@@ -51,7 +50,7 @@ namespace Alstom.MotionSeatPlugin
         /// When reading, <see cref="seatInfoCopy"/> must be up to date.  
         /// When writing, writes directly to the local <see cref="motionSeat.SeatInfo"/> (remote use sends TCP).
         /// </summary>
-        public bool MotionFlag
+        private bool MotionFlag
         {
             get { return seatInfoCopy.MotionFlag; } // Get value of the local or remote
             set { motionSeat.SeatInfo.MotionFlag = value; } // Write directly on the seat
@@ -127,6 +126,7 @@ namespace Alstom.MotionSeatPlugin
         internal MotionSeatControl(MotionSeat motionSeat)
         {
             InitializeComponent();
+
             RedirectConsoleOutput(); // Also send Console.WriteLine to a UI label.
 
             // Assign the injected MotionSeat and ensure it's valid.
@@ -164,6 +164,7 @@ namespace Alstom.MotionSeatPlugin
 
             // Restore last window position if available.
             TryRestoreWindowPosition();
+
         }
 
         // ─── Helper Method ───────────────────────────────────────────────────────
@@ -171,44 +172,36 @@ namespace Alstom.MotionSeatPlugin
         /// <summary>
         /// Attempts to restore the form’s last saved location from disk.
         /// </summary>
-        /// <summary>
-        /// Attempts to restore the form’s last saved location from disk. Defaults to (0,0) if missing or invalid.
-        /// </summary>
         private void TryRestoreWindowPosition()
         {
             const string savePath = "MotionSeatPluginSaved\\last.txt";
-            Point fallback = new Point(0, 0);
+            if (!File.Exists(savePath))
+            {
+                this.Location = new Point(0, 0);
+                return;
+            }
 
             try
             {
-                if (!File.Exists(savePath))
-                {
-                    Location = fallback;
-                    return;
-                }
-
-                string content = File.ReadAllText(savePath);
+                var content = File.ReadAllText(savePath);
                 var parts = content.Split(',');
-
-                if (parts.Length == 2 &&
-                    int.TryParse(parts[0], out int x) &&
-                    int.TryParse(parts[1], out int y))
+                if (parts.Length == 2
+                    && int.TryParse(parts[0], out int x)
+                    && int.TryParse(parts[1], out int y))
                 {
                     Location = new Point(x, y);
                 }
                 else
                 {
-                    Console.WriteLine("Invalid window position format. Using (0,0).");
-                    Location = fallback;
+                    Console.WriteLine($"No saved location found. Defaulting to 0,0.");
+                    this.Location = new Point(0, 0);
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error restoring window position: {ex.Message}");
-                Location = fallback;
+                Console.WriteLine($"Failed to restore window position: {ex.Message}");
             }
         }
-
 
         /// <summary>
         /// Attaches the appropriate TCP disconnection callback based on the configured client role.
@@ -366,68 +359,36 @@ namespace Alstom.MotionSeatPlugin
         }
 
 
+
+
         /// <summary>
-        /// Changes the seat being managed by this plugin. 
-        /// Use -1 for local seat control, or 0 to connect to remote instructor control.
+        /// Change the seat you are managing. Use <b>-1</b> to control this very plugin's motion seat.
         /// </summary>
-        internal async void SetSessionIndex(int sessionIndex)
+        internal async void SetSessionIndex(int sessionIndex=-1)
         {
-            if (sessionIndex == SessionIndex)
-                return;
-
-            LockUI();
-
-            try
+            if (sessionIndex != SessionIndex)
             {
-                Console.WriteLine($"[MotionSeat] Changing SessionIndex from {SessionIndex} to {sessionIndex}");
-
-                // Close any active TCP client connection before switching
+                LockUI();
+                Console.WriteLine($"Changing Session Index from {SessionIndex} to {sessionIndex}");
                 GetTCPClientAtIndex()?.QuitDialog();
-
-                // Accept only sessionIndex -1 (local) or 0 (remote/instructor)
-                SessionIndex = (sessionIndex == 0) ? 0 : -1;
-
-                // If managing a remote seat, connect via TCP
-                if (SessionIndex == 0)
-                {
-                    await GetTCPClientAtIndex()?.JoinDialog();
-                }
-
-                // Refresh seat info after switching session
+                SessionIndex = Utility.Clamp(-1, sessionIndex, 3); //we have 4 motionseats max to manage.
+                await GetTCPClientAtIndex()?.JoinDialog();
                 await UpdateSeatInfoWithIndex();
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[SetSessionIndex ERROR] {ex.Message}");
-            }
-            finally
-            {
                 UnlockUI();
             }
         }
 
 
 
-
         /// <summary>
-        /// Updates the local copy of seat info using the seat managed at <see cref="SessionIndex"/>.
-        /// Also refreshes <see cref="MotionFlag"/>, <see cref="Reactivity"/>, and <see cref="Status"/>.
+        /// Update the local <see cref="seatInfoCopy"/> with value of the managed seat thanks to <see cref="SessionIndex"/> (could be the local or a remote one)
         /// </summary>
+        ///<remarks>Affects also <see cref="MotionFlag"/>, <see cref="Reactivity"/> and <see cref="Status"/> that all rely on the <see cref="seatInfoCopy"/>.</remarks>
         private async Task UpdateSeatInfoWithIndex()
         {
-            try
-            {
-                var newInfo = await GetSeatInfoAtIndex();
-                if (newInfo != null)
-                {
-                    seatInfoCopy = newInfo;
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[UpdateSeatInfoWithIndex ERROR] {ex.Message}");
-            }
+            seatInfoCopy = await GetSeatInfoAtIndex() ?? seatInfoCopy;
         }
+
 
 
         /// <summary>
@@ -451,62 +412,45 @@ namespace Alstom.MotionSeatPlugin
         }
 
 
-
         /// <summary>
         /// Enable or disable the motion flag of the motion seat you're managing.
         /// </summary>
-        /// <param name="debug">Bypass seat status verification.</param>
-        /// <param name="forceState">0 = force disable, 1 = force enable, -1 = auto toggle.</param>
+        /// <param name="debug">set this to true to bypass seat status verification.</param>
+        ///<param name="forceState"><b>0</b> to force disable, <b>1</b> to force enable,<b>-1</b> to set the opposite state.</param>
+        /// <returns></returns>
         private async void EnableOrDisableMotionAtIndex(bool debug = false, int forceState = -1)
         {
             LockUI();
-
-            try
+            await UpdateSeatInfoWithIndex();
+            if (Status == SeatStatus.PLAYING || debug || MotionFlag || forceState != -1) //always allow to pass the test if motion already enabled so you can disable from single clic
             {
-                await UpdateSeatInfoWithIndex();
-
-                bool isPlaying = Status == SeatStatus.PLAYING;
-                bool canToggle = isPlaying || debug || MotionFlag || forceState != -1;
-                if (!canToggle)
-                    return;
-
-                if (MotionFlag || forceState == 0)
+                if (MotionFlag || forceState == 0)//we can currently move
                 {
-                    SecureZeroSeatAtIndex();
-                    MotionFlag = false;
-                    ResponseButton.BackgroundImage = response0;
+                    SecureZeroSeatAtIndex(); //we can't anymore
                 }
-                else if (!MotionFlag || forceState == 1)
+                else if (!MotionFlag || forceState == 1) //we can't move
                 {
                     if (SessionIndex < 0)
                     {
-                        MotionFlag = true;
-                        Reactivity = ReactivityLevels.NORMAL;
-                        ResponseButton.BackgroundImage = response1;
-                        await Task.Delay(150);
+                        MotionFlag = true; //until now.
+                        Reactivity = ReactivityLevels.NORMAL; //always go back to normal after unlocking motion.
+                        await Task.Delay(500);
+                        //ResponseButton.BackgroundImage = response1;
                     }
                     else
                     {
                         await SendRemoteCommand(RemoteCommandType.MOTION_ON);
-                        ResponseButton.BackgroundImage = response1;
-                        await Task.Delay(150);
+                        await Task.Delay(500);
+                        //ResponseButton.BackgroundImage = response1;
                     }
                 }
+            }
+            await UpdateSeatInfoWithIndex();
+            Console.WriteLine($"Simulation motion allowed : {MotionFlag}{(SessionIndex < 0 ? "." : "(might no be up to date with remote value).")}");
 
-                await UpdateSeatInfoWithIndex();
 
-                Console.WriteLine($"Simulation motion allowed: {MotionFlag} {(SessionIndex < 0 ? "" : "(remote sync may lag)")}");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[MOTION FLAG ERROR] {ex.Message}");
-            }
-            finally
-            {
-                UnlockUI();
-            }
+            UnlockUI();
         }
-
 
 
         /// <summary>
@@ -567,13 +511,11 @@ namespace Alstom.MotionSeatPlugin
                 if (SessionIndex < 0)
                 {
                     result = await motionSeat.ConnectInit(debug: false);
-                    
                     //motionSeat.SeatInfo.Status = SeatStatus.PLAYING;
                     //result = true;
-
                     //motionSeat.TCPMonitoring.Autoreconnect = true; //use that in final config
-                    //UseTCPCheckbox.Checked = true; // will toggle tcp timer accordingly
-
+                    UseTCPCheckbox.Checked = true; // will toggle tcp timer accordingly
+                    
                     if (result && motionSeat.SeatInfo.Status == SeatStatus.PLAYING)
                     {
                         Reactivity = ReactivityLevels.NORMAL;
@@ -582,8 +524,7 @@ namespace Alstom.MotionSeatPlugin
                     }
                     MotionFlag = false;
                     Console.WriteLine($"Start and Connect Seat: {(result?"OK":"NOK")}");
-                    await UpdateSeatInfoWithIndex();
-
+                    
                 }
                 else
                 {
@@ -632,10 +573,15 @@ namespace Alstom.MotionSeatPlugin
                 SecureZeroSeatAtIndex(); //motion locked with this one
                 await Task.Delay(1000);//wait for motion to be done
                 result = await motionSeat.StopDisconnect(debug: false);
+                motionSeat.SeatInfo.Status = SeatStatus.UNKNOWN;
+                await UpdateSeatInfoWithIndex();
                 Console.WriteLine($"Stop And Disconnect Seat: {(result ? "OK" : "NOK")}");
             }
             else
             {
+                result = await SendRemoteCommand(RemoteCommandType.SECURERESETPOSITION);
+                result = await SendRemoteCommand(RemoteCommandType.REACTIVITY_SECURE);
+                result = await SendRemoteCommand(RemoteCommandType.MOTION_OFF);
                 result = await SendRemoteCommand(RemoteCommandType.STOP);
                 Console.WriteLine($"You're managing seat n°{SessionIndex}. Stop command sent: {(result ? "OK" : "NOK")}");
             }
@@ -780,6 +726,7 @@ namespace Alstom.MotionSeatPlugin
             {
                 MotionFlag = true;
                 Reactivity = ReactivityLevels.SECURE;
+                SetLocalTrainVelocity(0, 0, 0);
                 SetLocalMotionTargets(0, 0, 0, 0, 0);
                 MotionFlag = false;
                 await UpdateSeatInfoWithIndex();
@@ -824,55 +771,34 @@ namespace Alstom.MotionSeatPlugin
             }
         }
 
-
-        // Place these fields in your class (if not already present)
-        private float lastAccX, lastAccY, lastAccZ;
-        private float lastPitch, lastRoll;
-        private float lastVelX, lastVelY, lastVelZ;
-
         /// <summary>
         /// Update the <see cref="motionSeat"/> with the new cached values.
         /// </summary>
         private void Update_Local_Seat_Continuous()
         {
-            // 1) Replace individual invalid values with last known valid ones
-            if (float.IsNaN(localAccelerationX) || float.IsInfinity(localAccelerationX)) localAccelerationX = lastAccX;
-            else lastAccX = localAccelerationX;
+            if (new float[]{
+                localAccelerationX, localAccelerationY, localAccelerationZ,
+                localRailPitch, localRailRoll,
+                localVelocityX,localVelocityY,localVelocityZ}.Any(f => float.IsNaN(f) || float.IsInfinity(f))) //check that no one is a NaN or infinite
+            { return; } //do not send the value further.
 
-            if (float.IsNaN(localAccelerationY) || float.IsInfinity(localAccelerationY)) localAccelerationY = lastAccY;
-            else lastAccY = localAccelerationY;
 
-            if (float.IsNaN(localAccelerationZ) || float.IsInfinity(localAccelerationZ)) localAccelerationZ = lastAccZ;
-            else lastAccZ = localAccelerationZ;
-
-            if (float.IsNaN(localRailPitch) || float.IsInfinity(localRailPitch)) localRailPitch = lastPitch;
-            else lastPitch = localRailPitch;
-
-            if (float.IsNaN(localRailRoll) || float.IsInfinity(localRailRoll)) localRailRoll = lastRoll;
-            else lastRoll = localRailRoll;
-
-            if (float.IsNaN(localVelocityX) || float.IsInfinity(localVelocityX)) localVelocityX = lastVelX;
-            else lastVelX = localVelocityX;
-
-            if (float.IsNaN(localVelocityY) || float.IsInfinity(localVelocityY)) localVelocityY = lastVelY;
-            else lastVelY = localVelocityY;
-
-            if (float.IsNaN(localVelocityZ) || float.IsInfinity(localVelocityZ)) localVelocityZ = lastVelZ;
-            else lastVelZ = localVelocityZ;
-
+            /*
             // 2) Determine occupancy from the latest weight measurements
             bool isOccupied = false;
             float normalizedWeight = 0f;
 
             if (extrasCache?.Weights != null && extrasCache.Weights.Count > 0)
             {
+                // Sum and normalize
                 float totalWeight = extrasCache.Weights.Sum();
                 normalizedWeight = totalWeight / 10f;
                 isOccupied = normalizedWeight > 150f;
             }
             else
             {
-                isOccupied = true; // Treat as occupied if unknown
+                // No weight data received => treat as empty
+                isOccupied = true;
             }
 
             // 3) Compute speed magnitude (m/s)
@@ -883,19 +809,24 @@ namespace Alstom.MotionSeatPlugin
             );
 
             // 4) Define thresholds
-            const double speedThreshold = 3.0;
-            const float accThreshold = 0.05f;
-            const float angleThreshold = 0.05f;
+            const double speedThreshold = 3.0;   // m/s
+            const float accThreshold = 0.05f;  // m/s², “very high” acceleration
+            const float angleThreshold = 0.05f; // radians for pitch/roll
 
-            // 5) Detect high accel or large angles
+            // 5) Zero-out logic:
+            //    - If seat is empty OR
+            //    - If speed < threshold AND no high accel AND no large pitch/roll
+            // 5) Detect any very high acceleration or large pitch/roll
             bool highAccel = Math.Abs(localAccelerationX) > accThreshold
-                          || Math.Abs(localAccelerationY) > accThreshold
-                          || Math.Abs(localAccelerationZ) > accThreshold;
+                            || Math.Abs(localAccelerationY) > accThreshold
+                            || Math.Abs(localAccelerationZ) > accThreshold;
 
             bool largeAngle = Math.Abs(localRailPitch) > angleThreshold
-                           || Math.Abs(localRailRoll) > angleThreshold;
+                            || Math.Abs(localRailRoll) > angleThreshold;
 
-            // 6) Determine if zeroing is needed
+            // 6) Zero-out logic:
+            //    - If seat is empty OR
+            //    - If speed < threshold AND NOT (highAccel OR largeAngle)
             bool shouldZeroAll = !isOccupied
                 || (speedMagnitude < speedThreshold && !(highAccel || largeAngle));
 
@@ -910,20 +841,18 @@ namespace Alstom.MotionSeatPlugin
                 localVelocityY = 0f;
                 localVelocityZ = 0f;
             }
+            */
 
-            // 7) Apply motion values
             motionSeat.WriteAcceleration(localAccelerationX, localAccelerationY, localAccelerationZ);
             motionSeat.WritePitch(localRailPitch);
             motionSeat.WriteRoll(localRailRoll);
             motionSeat.WriteVelocity(localVelocityX, localVelocityY, localVelocityZ);
 
-            // 8) Send motion only if active and authorized
-            if (motionSeat.SeatInfo.Status == SeatStatus.PLAYING && MotionFlag)
+            if (motionSeat.SeatInfo.Status == SeatStatus.PLAYING)
             {
                 motionSeat.SendMotionTargets();
             }
         }
-
 
         /// <summary>
         /// Update the UI if it is visible.

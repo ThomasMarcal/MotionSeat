@@ -22,7 +22,7 @@ namespace Alstom.MotionSeatPlugin
         /// <summary>
         /// IP address of the local machine (this PC).
         /// </summary>
-        public static string LocalIP { get; set; } = "192.168.1.19";
+        public static string LocalIP { get; set; } = "192.168.3.10";
 
         /// <summary>
         /// TCP port used by the local listener.
@@ -45,7 +45,7 @@ namespace Alstom.MotionSeatPlugin
         /// <summary>
         /// IP address of the remote target machine.
         /// </summary>
-        public static string RemoteIP { get; set; } = "192.168.1.21";
+        public static string RemoteIP { get; set; } = "192.168.3.11";
 
         /// <summary>
         /// TCP port on the remote machine.

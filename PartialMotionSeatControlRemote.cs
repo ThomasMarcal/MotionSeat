@@ -1,10 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Management;
 using System.Net;
-using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using Alstom.MotionSeatPlugin.TCP;
@@ -21,11 +19,7 @@ namespace Alstom.MotionSeatPlugin
         /// <summary>
         /// Receive instruction from other plugins and send them back updated information about the seat.
         /// </summary>
-
         private PluginTCPListener tcpListener = new PluginTCPListener(StaticClientConfig.LocalIP, StaticClientConfig.LocalPort);
-
-        //private PluginTCPListener tcpListener = new PluginTCPListener("192.168.1.19", 8083);
-
 
         /// <summary>
         /// Connect to a remote plugin's <see cref="tcpListener"/> and send instruction to the plugin.
@@ -34,77 +28,14 @@ namespace Alstom.MotionSeatPlugin
 
 
         /// <summary>
-        /// Assign the IP and ports of the tcp listener and clients with what is written in the ./TcpRemoteControl.ini file. 
-        /// </summary>
-        /*
-        private void ReadTCPAddresses()
-        {
-            string filepath = "./TcpRemoteControl.ini";
-            if (File.Exists(filepath))
-            {
-                string[] lines = File.ReadAllLines(filepath);
-                foreach (string line in lines)
-                {
-                    if (line.Trim().StartsWith("#") || line=="") { continue; }
-                    string[] split = line.Split('=').Select(s => s.Trim()).ToArray();
-                    if (split.Length!=2) { continue; }
-                    IPEndPoint ipep = GetIPEndPoint(split[1]);
-                    switch (split[0])
-                    {
-                        case "LISTENER":
-                            tcpListener.CloseDialog();
-                            tcpListener = new PluginTCPListener(ipep.Address.ToString(), ipep.Port);
-                            Console.WriteLine($"Changed IP and port of PluginTcpListener to {split[1]}");
-                            break;
-                        case "SEAT0":
-                            tcpClientCAB1.QuitDialog();
-                            tcpClientCAB1 = new PluginTCPClient(ipep.Address.ToString(),ipep.Port,"TCPtoSeat1Client");
-                            Console.WriteLine($"Changed IP and port of TCPtoSeat1Client to {split[1]}");
-                            break;
-                        case "SEAT1":
-                            tcpClientCAB2.QuitDialog();
-                            tcpClientCAB2 = new PluginTCPClient(ipep.Address.ToString(), ipep.Port, "TCPtoSeat2Client");
-                            Console.WriteLine($"Changed IP and port of TCPtoSeat2Client to {split[1]}");
-                            break;
-                        case "SEAT2":
-                            tcpClientCAB3.QuitDialog();
-                            tcpClientCAB3 = new PluginTCPClient(ipep.Address.ToString(), ipep.Port, "TCPtoSeat3Client");
-                            Console.WriteLine($"Changed IP and port of TCPtoSeat3Client to {split[1]}");
-                            break;
-                        case "SEAT3":
-                            tcpClientCAB4.QuitDialog();
-                            tcpClientCAB4 = new PluginTCPClient(ipep.Address.ToString(), ipep.Port, "TCPtoSeat4Client");
-                            Console.WriteLine($"Changed IP and port of TCPtoSeat4Client to {split[1]}");
-                            break;
-                        default:
-                            break;
-                    }
-                }
-            }
-
-        }
-        */
-
-        private IPEndPoint GetIPEndPoint(string ip)
-        {
-            string[] result = ip.Split(':').Select(c => c.Trim()).ToArray();
-            try
-            {
-                return new IPEndPoint(IPAddress.Parse(result[0]), int.Parse(result[1]));
-            }
-            catch (Exception) { return new IPEndPoint(IPAddress.Parse("127.0.0.1"), 6000); }
-        }
-
-
-        /// <summary>
         /// Close the TCP objects running within this <see cref="MotionSeatControl"/>
         /// </summary>
         private void DisconnectTCPSockets()
         {
-            tcpClientCAB1.QuitDialog();
-            tcpListener.CloseDialog();
-
+            tcpClientCAB1?.QuitDialog();
+            tcpListener?.CloseDialog();
         }
+
 
         /// <summary>
         /// A list of command you can execute on a remote plugin.
@@ -265,7 +196,9 @@ namespace Alstom.MotionSeatPlugin
             if (SessionIndex < 0)
             {
                 // Si local, on retourne directement une copie
-                extrasCache = null;
+                
+        
+        = null;
                 return motionSeat.SeatInfo.Clone();
             }
 

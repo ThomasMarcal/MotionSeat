@@ -476,8 +476,8 @@ namespace DBox.MotionSeat
         /// </summary>
         internal void ActivateBogieContinuousHit(bool activated)
         {
-            oEventBogieContinuous.IntensityFront = 2.5f;
-            oEventBogieContinuous.IntensityBack = 0.5f;
+            oEventBogieContinuous.IntensityFront = 2f;
+            oEventBogieContinuous.IntensityBack = 2f;
             oEventBogieContinuous.StartStop = activated ? 1 : 0;
             //Console.WriteLine($"TAC TAC {activated}");
             SeatInfo.ErrorCode = DboxSdkWrapper.PostActionEventBogieContinuous(oEventBogieContinuous);
@@ -501,7 +501,7 @@ namespace DBox.MotionSeat
         /// </summary>
         /// <param name="intensityBump">Vertical bump intensity (typically between 0.0 and 1.0)</param>
         /// <param name="intensityShake">Lateral shake intensity (typically between 0.0 and 1.0)</param>
-        internal void DoTrainImpact(float intensityBump = 5f, float intensityShake = 5f)
+        internal void DoTrainImpact(float intensityBump = 2f, float intensityShake = 2f)
         {
             oEventImpact.IntensityBump = intensityBump;
             oEventImpact.IntensityShake = intensityShake;
@@ -515,8 +515,8 @@ namespace DBox.MotionSeat
         internal void DoEnvContinuous(bool activated)
         {
             oEventEnvironmentalContinuous.StartStop = activated ? 1 : 0;
-            oEventEnvironmentalContinuous.PitchIntensity = 1f;
-            oEventEnvironmentalContinuous.RollIntensity = 1f;
+            oEventEnvironmentalContinuous.PitchIntensity = 2f;
+            oEventEnvironmentalContinuous.RollIntensity = 2f;
             SeatInfo.ErrorCode = DboxSdkWrapper.PostActionEventEnvironmentalContinuous(oEventEnvironmentalContinuous);
 
             SeatInfo.TrainVelocityTargets = new Vector3(oFrameUpdate.VelocityXYZ.X, oFrameUpdate.VelocityXYZ.Y, oFrameUpdate.VelocityXYZ.Z);

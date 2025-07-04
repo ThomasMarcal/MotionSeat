@@ -1,77 +1,5 @@
-﻿/*
- 
-  -------------------------------------------------------------------------------
-  ⚠️  WARNING – DO NOT MODIFY THIS FILE UNLESS YOU ARE FULLY AWARE OF THE IMPACT
-  -------------------------------------------------------------------------------
- 
-=================================================================================
-  DBOX TCP COMMUNICATION CORE – PluginTCP.cs
-=================================================================================
-
-  This module implements the complete TCP communication infrastructure required 
-  for real-time data exchange between a D-BOX motion seat plugin and external 
-  remote interfaces. It is designed to work seamlessly across LAN-connected 
-  simulation environments in both client and server configurations.
-
-  The architecture supports high-performance, asynchronous, bidirectional messaging 
-  between D-BOX control software and external systems, allowing for the exchange of:
-    - Remote control commands (e.g., START, STOP, MOTION_ON/OFF)
-    - Seat state telemetry (serialized in JSON)
-    - Synchronization of simulation parameters
-
----------------------------------------------------------------------------------
-  FUNCTIONAL OVERVIEW:
----------------------------------------------------------------------------------
-
-  ✔️ Robust server mode (TCP listener) with single-client connection policy
-  ✔️ Resilient client mode (TCP client) with automatic reconnection logic
-  ✔️ Asynchronous stream reading/writing with newline-delimited protocol
-  ✔️ Lightweight disconnection monitoring using socket polling + empty reads
-  ✔️ Lock-protected send/receive logic to ensure concurrency safety
-  ✔️ Cancellation support via CancellationToken for graceful shutdown
-  ✔️ Integrated command parsing and JSON-based telemetry serialization
-
----------------------------------------------------------------------------------
-  TECHNICAL DEPENDENCIES:
----------------------------------------------------------------------------------
-
-  - System.Net.Sockets.TcpClient / TcpListener 
-  – Core TCP connectivity
-  - System.IO.StreamReader / StreamWriter       
-  – ASCII stream I/O
-  - Newtonsoft.Json                            
-  – SeatInfo object serialization
-  - System.Threading / System.Threading.Tasks  
-  – Async programming + cancellation
-
----------------------------------------------------------------------------------
-  USAGE WARNINGS:
----------------------------------------------------------------------------------
-
-  ⚠️ Only one active client is supported per listener instance
-  ⚠️ Always validate deserialized data before processing
-  ⚠️ Ensure that SeatInfo structures are consistent between systems
-  ⚠️ This core must not be modified unless changes are validated across all modules
-
----------------------------------------------------------------------------------
-  AUTHORS / MAINTAINERS:
----------------------------------------------------------------------------------
-
-  - Nicolas DAVAIL  (ALSTOM)
-  - Thomas MARCAL   (ALSTOM)
-  - Alexis ALBE     (DBOX)
-
-  Last Updated: 06/06/2025
-  Project: Alstom T&S – DBOX TCP Communication Core
-
-=================================================================================
-
-*/
-
-
-using System;
+﻿using System;
 using System.IO;
-using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -82,6 +10,10 @@ using Newtonsoft.Json;
 
 namespace Alstom.MotionSeatPlugin.TCP
 {
+    internal static class GlobalConfig
+    {
+        public static bool EnableLogs = false;
+    }
 
     // ============================================================================
     // =                        PluginTCPListener Class                           =
@@ -94,6 +26,7 @@ namespace Alstom.MotionSeatPlugin.TCP
     /// </summary>
     internal class PluginTCPListener : PluginTCP
     {
+
         private readonly IPAddress listenerAddress;
         private readonly int listenerPort;
         private TcpListener listener;
@@ -118,11 +51,13 @@ namespace Alstom.MotionSeatPlugin.TCP
         {
             if (isStarted)
             {
-                Console.WriteLine($"[{name}] Listener already started. Restarting...");
+                if (GlobalConfig.EnableLogs)
+                    Console.WriteLine($"[{name}] Listener already started. Restarting...");
                 CloseDialog();
             }
 
             listener = new TcpListener(listenerAddress, listenerPort);
+            listener.Server.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
 
             try
             {
@@ -137,7 +72,8 @@ namespace Alstom.MotionSeatPlugin.TCP
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[{name}] ERROR - Failed to start listener: {FormatException(ex)}");
+                if (GlobalConfig.EnableLogs)
+                    Console.WriteLine($"[{name}] ERROR - Failed to start listener: {FormatException(ex)}");
                 return;
             }
 
@@ -145,21 +81,25 @@ namespace Alstom.MotionSeatPlugin.TCP
             {
                 try
                 {
-                    Console.WriteLine($"[{name}] Waiting for an incoming connection...");
+                    if (GlobalConfig.EnableLogs)
+                        Console.WriteLine($"[{name}] Waiting for an incoming connection...");
                     var connectedClient = await listener.AcceptTcpClientAsync();
                     SetClient(connectedClient);
-                    Console.WriteLine($"[{name}] Client connected from <{Client?.Client?.RemoteEndPoint}>.");
+                    if (GlobalConfig.EnableLogs)
+                        Console.WriteLine($"[{name}] Client connected from <{Client?.Client?.RemoteEndPoint}>.");
 
                     _ = MonitorConnectionAsync();
                 }
                 catch (ObjectDisposedException)
                 {
-                    Console.WriteLine($"[{name}] Listener stopped. Exiting accept loop.");
+                    if (GlobalConfig.EnableLogs)
+                        Console.WriteLine($"[{name}] Listener stopped. Exiting accept loop.");
                     break;
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[{name}] ERROR - Accepting client failed: {FormatException(ex)}");
+                    if (GlobalConfig.EnableLogs)
+                        Console.WriteLine($"[{name}] ERROR - Accepting client failed: {FormatException(ex)}");
                 }
             }
         }
@@ -184,18 +124,17 @@ namespace Alstom.MotionSeatPlugin.TCP
 
                     if (Client.Client.Poll(0, SelectMode.SelectRead) && Client.Client.Available == 0)
                         break;
-
-                    if (stream.CanRead)
-                        await stream.ReadAsync(monitoringBuffer, 0, 0, token);
                 }
             }
             catch (OperationCanceledException)
             {
-                Console.WriteLine($"[{name}] Monitor cancelled.");
+                if (GlobalConfig.EnableLogs)
+                    Console.WriteLine($"[{name}] Monitor cancelled.");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[{name}] Monitor error: {FormatException(ex)}");
+                if (GlobalConfig.EnableLogs)
+                    Console.WriteLine($"[{name}] Monitor error: {FormatException(ex)}");
             }
 
             CloseClient();
@@ -208,6 +147,8 @@ namespace Alstom.MotionSeatPlugin.TCP
         /// </summary>
         internal void CloseDialog()
         {
+            isStarted = false;
+
             connectionMonitorCTS?.Cancel();
             connectionMonitorCTS?.Dispose();
             connectionMonitorCTS = new CancellationTokenSource();
@@ -221,7 +162,8 @@ namespace Alstom.MotionSeatPlugin.TCP
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[{name}] ERROR - Failed to close listener: {FormatException(ex)}");
+                if (GlobalConfig.EnableLogs)
+                    Console.WriteLine($"[{name}] ERROR - Failed to close listener: {FormatException(ex)}");
             }
             finally
             {
@@ -252,6 +194,7 @@ namespace Alstom.MotionSeatPlugin.TCP
         private CancellationTokenSource monitoringCTS = new CancellationTokenSource();
         private bool autoReconnectEnabled = true;
 
+        internal Action OnConnected { get; set; }
         internal Action OnDisconnected { get; set; }
 
 
@@ -268,7 +211,8 @@ namespace Alstom.MotionSeatPlugin.TCP
         /// </summary>
         internal async Task JoinDialog()
         {
-            Console.WriteLine($"[{name}] Attempting to connect to <{listenerIp}:{listenerPort}>.");
+            if (GlobalConfig.EnableLogs)
+                Console.WriteLine($"[{name}] Attempting to connect to <{listenerIp}:{listenerPort}>.");
 
             if (Client != null)
                 QuitDialog();
@@ -277,7 +221,8 @@ namespace Alstom.MotionSeatPlugin.TCP
             {
                 if (connectionLock)
                 {
-                    Console.WriteLine($"[{name}] Connection already in progress. Retrying...");
+                    if (GlobalConfig.EnableLogs)
+                        Console.WriteLine($"[{name}] Connection already in progress. Retrying...");
                     await Task.Delay(5000);
                     continue;
                 }
@@ -287,12 +232,14 @@ namespace Alstom.MotionSeatPlugin.TCP
                 try
                 {
                     var client = new TcpClient();
-                    Console.WriteLine($"[{name}] Connecting to listener at <{listenerIp}:{listenerPort}>...");
+                    if (GlobalConfig.EnableLogs)
+                        Console.WriteLine($"[{name}] Connecting to listener at <{listenerIp}:{listenerPort}>...");
 
                     await client.ConnectAsync(listenerIp, listenerPort);
                     SetClient(client);
 
-                    Console.WriteLine($"[{name}] Connected: <{Client.Client.LocalEndPoint}> -> <{Client.Client.RemoteEndPoint}>");
+                    if (GlobalConfig.EnableLogs)
+                        Console.WriteLine($"[{name}] Connected: <{Client.Client.LocalEndPoint}> -> <{Client.Client.RemoteEndPoint}>");
 
                     monitoringCTS?.Cancel();
                     monitoringCTS?.Dispose();
@@ -304,7 +251,8 @@ namespace Alstom.MotionSeatPlugin.TCP
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[{name}] Connection failed: {FormatException(ex)}");
+                    if (GlobalConfig.EnableLogs)
+                        Console.WriteLine($"[{name}] Connection failed: {FormatException(ex)}");
                 }
                 finally
                 {
@@ -338,17 +286,17 @@ namespace Alstom.MotionSeatPlugin.TCP
                     if (Client.Client.Poll(0, SelectMode.SelectRead) && Client.Client.Available == 0)
                         break;
 
-                    if (stream.CanRead)
-                        await stream.ReadAsync(connectionCheckBuffer, 0, 0, token);
                 }
             }
             catch (OperationCanceledException)
             {
-                Console.WriteLine($"[{name}] Monitoring cancelled by token.");
+                if (GlobalConfig.EnableLogs)
+                    Console.WriteLine($"[{name}] Monitoring cancelled by token.");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[{name}] Failed to monitor connection: {FormatException(ex)}");
+                if (GlobalConfig.EnableLogs)
+                    Console.WriteLine($"[{name}] Failed to monitor connection: {FormatException(ex)}");
             }
             finally
             {
@@ -362,7 +310,8 @@ namespace Alstom.MotionSeatPlugin.TCP
 
             if (autoReconnectEnabled)
             {
-                Console.WriteLine($"[{name}] Attempting reconnection in 3s...");
+                if (GlobalConfig.EnableLogs)
+                    Console.WriteLine($"[{name}] Attempting reconnection in 3s...");
                 await Task.Delay(3000);
                 _ = JoinDialog();
             }
@@ -385,13 +334,14 @@ namespace Alstom.MotionSeatPlugin.TCP
                     monitoringCTS?.Dispose();
                     monitoringCTS = new CancellationTokenSource();
                 }
-
-                Console.WriteLine($"[{name}] Closing client connection...");
+                if (GlobalConfig.EnableLogs)
+                    Console.WriteLine($"[{name}] Closing client connection...");
                 CloseClient();
             }
             else
             {
-                Console.WriteLine($"[{name}] No active client connection to close.");
+                if (GlobalConfig.EnableLogs)
+                    Console.WriteLine($"[{name}] No active client connection to close.");
             }
         }
     }
@@ -435,8 +385,8 @@ namespace Alstom.MotionSeatPlugin.TCP
             {
                 AutoFlush = true
             };
-
-            Console.WriteLine($"[{name}] Client initialized.");
+            if (GlobalConfig.EnableLogs)
+                Console.WriteLine($"[{name}] Client initialized.");
         }
 
         /// <summary>
@@ -451,11 +401,13 @@ namespace Alstom.MotionSeatPlugin.TCP
                 writer?.Dispose();
                 Client?.GetStream()?.Close();
                 Client?.Close();
-                Console.WriteLine($"[{name}] Client connection closed.");
+                if (GlobalConfig.EnableLogs)
+                    Console.WriteLine($"[{name}] Client connection closed.");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[{name}] Error closing client connection: {FormatException(ex)}");
+                if (GlobalConfig.EnableLogs)
+                    Console.WriteLine($"[{name}] Error closing client connection: {FormatException(ex)}");
             }
             finally
             {
@@ -482,20 +434,20 @@ namespace Alstom.MotionSeatPlugin.TCP
 
                 if (Client.Client.Poll(0, SelectMode.SelectRead) && Client.Client.Available == 0)
                 {
-                    Console.WriteLine($"[{name}] Socket closed after send.");
+                    if (GlobalConfig.EnableLogs)
+                        Console.WriteLine($"[{name}] Socket closed after send.");
                     throw new IOException("Remote socket closed.");
                 }
 
-                if (consoleLog)
-                {
+                if (GlobalConfig.EnableLogs)
                     Console.WriteLine($"[{name}] Sent \"{message}\" from <{Client.Client.LocalEndPoint}> to <{Client.Client.RemoteEndPoint}>.");
-                }
 
                 return message.Length + 1;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[{name}] Failed to send message: {FormatException(ex)}");
+                if (GlobalConfig.EnableLogs)
+                    Console.WriteLine($"[{name}] Failed to send message: {FormatException(ex)}");
                 return 0;
             }
             finally
@@ -509,12 +461,17 @@ namespace Alstom.MotionSeatPlugin.TCP
         /// Returns an empty string on failure or no data.
         /// </summary>
         /// <returns>The message received, or an empty string.</returns>
+        /// 
+        private readonly SemaphoreSlim readLockSlim = new SemaphoreSlim(1, 1);
+
+
         internal async Task<string> ReadOnly(int timeoutMs = 2000, CancellationToken externalToken = default)
         {
             if (Client == null || !Client.Connected || reader == null || readLock)
                 return string.Empty;
 
-            readLock = true;
+            //readLock = true;
+            await readLockSlim.WaitAsync();
             try
             {
                 using (CancellationTokenSource cts = CancellationTokenSource.CreateLinkedTokenSource(externalToken))
@@ -526,72 +483,34 @@ namespace Alstom.MotionSeatPlugin.TCP
                     Task completed = await Task.WhenAny(readTask, delayTask);
                     if (completed != readTask)
                     {
-                        //Console.WriteLine($"[{name}] ReadOnly timed out after {timeoutMs}ms.");
+                        if (GlobalConfig.EnableLogs) 
+                            Console.WriteLine($"[{name}] ReadOnly timed out after {timeoutMs}ms.");
                         return string.Empty;
                     }
 
                     string line = await readTask;
-                    if (consoleLog && !string.IsNullOrEmpty(line))
+                    if (GlobalConfig.EnableLogs)
                         Console.WriteLine($"[{name}] Received \"{line}\" from <{Client.Client.RemoteEndPoint}>.");
                     return line ?? string.Empty;
                 }
             }
             catch (OperationCanceledException)
             {
-                Console.WriteLine($"[{name}] ReadOnly cancelled.");
+                if (GlobalConfig.EnableLogs)
+                    Console.WriteLine($"[{name}] ReadOnly cancelled.");
                 return string.Empty;
             }
             catch (Exception ex)
             {
-                //Console.WriteLine($"[{name}] Error in ReadOnly: {ex.Message}");
+                if (GlobalConfig.EnableLogs) 
+                    Console.WriteLine($"[{name}] Error in ReadOnly: {ex.Message}");
                 return string.Empty;
             }
             finally
             {
-                readLock = false;
+                readLockSlim.Release();
             }
         }
-
-        /*
-
-        internal async Task<string> ReadOnly()
-        {
-            if (Client == null || !Client.Connected || reader == null || readLock)
-                return string.Empty;
-
-            readLock = true;
-            string line = string.Empty;
-
-            try
-            {
-                if (Client.Available == 0)
-                    return string.Empty;
-
-                line = await reader.ReadLineAsync();
-                if (consoleLog && !string.IsNullOrWhiteSpace(line))
-                {
-                    Console.WriteLine($"[{name}] Received \"{line}\" from <{Client.Client.RemoteEndPoint}>.");
-                }
-            }
-            catch (IOException ex)
-            {
-                Console.WriteLine($"[{name}] IO error while reading: {FormatException(ex)}");
-            }
-            catch (ObjectDisposedException)
-            {
-                Console.WriteLine($"[{name}] Stream closed during read operation.");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[{name}] Unexpected error while reading: {FormatException(ex)}");
-            }
-            finally
-            {
-                readLock = false;
-            }
-            return line ?? string.Empty;
-        }
-        */
 
         /// <summary>
         /// Sends a message and waits for a single-line response from the remote peer.
@@ -603,14 +522,16 @@ namespace Alstom.MotionSeatPlugin.TCP
         {
             if (string.IsNullOrWhiteSpace(message) || Client == null || !Client.Connected)
             {
-                Console.WriteLine($"[{name}] Cannot send message: invalid client or empty input.");
+                if (GlobalConfig.EnableLogs)
+                    Console.WriteLine($"[{name}] Cannot send message: invalid client or empty input.");
                 return string.Empty;
             }
 
             int sent = await SendOnly(message);
             if (sent == 0)
             {
-                Console.WriteLine($"[{name}] Failed to send message: \"{message}\".");
+                if (GlobalConfig.EnableLogs)
+                    Console.WriteLine($"[{name}] Failed to send message: \"{message}\".");
                 return string.Empty;
             }
 
@@ -635,7 +556,8 @@ namespace Alstom.MotionSeatPlugin.TCP
         {
             if (Client != null)
             {
-                Console.WriteLine($"[{name}] Clearing TCP client reference.");
+                if (GlobalConfig.EnableLogs)
+                    Console.WriteLine($"[{name}] Clearing TCP client reference.");
             }
 
             Client = null;

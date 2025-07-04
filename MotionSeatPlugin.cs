@@ -1,66 +1,8 @@
-﻿/*
-
-  -----------------------------------------------------------------------------
-  ⚠️  WARNING – DO NOT MODIFY THIS FILE UNLESS YOU KNOW EXACTLY WHAT YOU'RE DOING
-  -----------------------------------------------------------------------------
-
-===============================================================================
-  SELENA MOTION PLUGIN – MotionSeatPlugin.cs
-===============================================================================
-
-  This class represents the integration layer between the D-BOX motion seat 
-  and the SelenaMotionBridge system. It acts as the entry point and plugin 
-  handler for DBOX-based motion feedback within the simulation environment.
-
-  The plugin controls the initialization, simulation lifecycle, and dynamic 
-  updates of the seat based on data streamed from Selena. It also manages 
-  the UI form (`MotionSeatControl`) and synchronizes user feedback and events.
-
-  -----------------------------------------------------------------------------
-  FUNCTIONAL OVERVIEW:
-  -----------------------------------------------------------------------------
-
-  - Initializes and exposes the MotionSeat for local simulation control
-  - Displays and manages the MotionSeatControl user interface
-  - Listens to simulation lifecycle events (start, stop, shutdown)
-  - Sends acceleration, pitch, roll, and environmental feedback to the seat
-  - Handles emergency stop and remote status fallback
-  - Returns plugin health and readiness status to SelenaMotionBridge
-
-  The class implements the `IMotionPlugin` interface and must remain 
-  compatible with the lifecycle methods defined by the bridge.
-
-  -----------------------------------------------------------------------------
-  TECHNICAL DEPENDENCIES:
-  -----------------------------------------------------------------------------
-
-  - Requires the MotionSeat SDK integration via:
-      --> DBox.MotionSeat
-  - UI form:
-      --> MotionSeatControl.cs
-  - Used in conjunction with:
-      --> RailCommon.MotionPluginDefinition (interface definition)
-      --> MotionBridge execution context
-
-  WARNING:
-  - Do NOT call methods from `motionSeat` directly, always go through `controlForm`
-  - All command dispatching and status updates must go through this plugin
-
-  -----------------------------------------------------------------------------
-  AUTHOR / MAINTAINER:
-  -----------------------------------------------------------------------------
-
-  - Developer: DAVAIL Nicolas (ALSTOM), MARCAL Thomas (ALSTOM), ALBE Alexis (DBOX)
-  - Last updated: 22/04/2025
-  - Project: Alstom T&S - DBOX Motion Seat Integration Plugin
-
-===============================================================================
-*/
-
-using RailCommon.MotionPluginDefinition;
+﻿using RailCommon.MotionPluginDefinition;
 using System;
 using DBox.MotionSeat;
 using System.Windows.Forms;
+using System.Threading.Tasks;
 
 namespace Alstom.MotionSeatPlugin
 {
@@ -415,7 +357,8 @@ namespace Alstom.MotionSeatPlugin
         private DateTime _lastDebugLogTime = DateTime.MinValue;
         private bool _accidentSequenceRunning = false;
         private DateTime _lastAccidentTime = DateTime.MinValue;
-        public bool MotionFlag => controlForm?.MotionFlag ?? false;
+        // champs à ajouter dans ta classe :
+        private int _accidentStep = 0;
 
         /// <summary>
         /// Called regularly by the SelenaMotionBridge to update the plugin with new dynamic data from the simulation.
@@ -433,11 +376,9 @@ namespace Alstom.MotionSeatPlugin
 
             try
             {
-
-                if (!isPlaying || !data.IsActive || !MotionFlag || motionSeat.SeatInfo.Status != SeatStatus.PLAYING || controlForm.SessionIndex != -1)
+                if (!isPlaying || !data.IsActive)
                     return;
-
-
+                
                 //controlForm.DoLocalEvent(DBoxEventMask.SWITCH | controlForm.GetLocalContinuousEvents(), false);
 
                 double speedKmph = data.Speed_mps * 3.6;
@@ -446,25 +387,19 @@ namespace Alstom.MotionSeatPlugin
                 //    – léger vrombissement moteur / ballast dès que > 5 km/h
                 bool hasMotion = speedKmph >= 3f;
                 controlForm.DoLocalEvent(DBoxEventMask.ENV | controlForm.GetLocalContinuousEvents(), hasMotion);
+                controlForm.DoLocalEvent(DBoxEventMask.CONTINUOUS | controlForm.GetLocalContinuousEvents(), hasMotion);
 
                 // 5) EFFET PATINAGE (skid)  
                 //    – freinage brusque (longitudinal < –1.5 m/s²)
                 bool skidOn = data.Longitudinal_Acceleration_mps2 < -4f;
-                controlForm.DoLocalEvent(DBoxEventMask.SKID | controlForm.GetLocalContinuousEvents(), skidOn);
-
-                // 6) EFFET VIBRATION RYTHMIQUE (bogie continuous)  
-                //    – si vitesse stable > 30 km/h et pas de virage serré (pitch/roll faibles)
-                bool straightHighSpeed = speedKmph > 20f
-                                       && Math.Abs(data.Pitch_rad) < 0.02f
-                                       && Math.Abs(data.Roll_rad) < 0.02f;
-                controlForm.DoLocalEvent(DBoxEventMask.CONTINUOUS | controlForm.GetLocalContinuousEvents(), straightHighSpeed);
+                //controlForm.DoLocalEvent(DBoxEventMask.SKID, skidOn);
 
                 // HIT
                 // --- Bump intensity calculation ---
                 float bumpHit = CalculateIntensity(
                     (float)speedKmph,
                     minSpeed: 0f, maxSpeed: 120f,
-                    minIntensity: 2f, maxIntensity: 3f,
+                    minIntensity: 1f, maxIntensity: 2f,
                     k: 12f,
                     midSpeed: 20f
                 );
@@ -476,7 +411,7 @@ namespace Alstom.MotionSeatPlugin
                 if (Math.Abs(data.BackBogieLastSwitchCrossingServerTime_s - data.ServerTime_s) < 0.02f)
                     controlForm.DoLocalEvent(DBoxEventMask.HIT | controlForm.GetLocalContinuousEvents(), 0, bumpHit);
 
-                if (Math.Abs(data.FrontBogieLastDetonatorCrossingServerTime_s - data.ServerTime_s) < 0.02f)
+                if (Math.Abs(data.FrontBogieLastDetonatorCrossingServerTime_s - data.ServerTime_s) < 0.05f)
                 {
                     controlForm.DoLocalEvent(DBoxEventMask.HIT | controlForm.GetLocalContinuousEvents(), 0, bumpHit);
                     controlForm.DoLocalEvent(DBoxEventMask.HIT | controlForm.GetLocalContinuousEvents(), 1, bumpHit);
@@ -487,8 +422,8 @@ namespace Alstom.MotionSeatPlugin
                 // --- Bump intensity calculation ---
                 float bump = CalculateIntensity(
                     (float)speedKmph,
-                    minSpeed: 0f, maxSpeed: 80f,
-                    minIntensity: 1.5f, maxIntensity: 3f,
+                    minSpeed: 0f, maxSpeed: 70f,
+                    minIntensity: 1f, maxIntensity: 2f,
                     k: 12f,
                     midSpeed: 20f
                 );
@@ -529,7 +464,7 @@ namespace Alstom.MotionSeatPlugin
                     if (_accidentSequenceRunning
                         && (DateTime.Now - _lastAccidentTime).TotalMilliseconds >= 500)
                     {
-                        float[] seq = new float[] { bump, bump * 0.7f, bump * 0.5f, bump * 0.3f };
+                        float[] seq = new float[] { bump, bump * 0.5f };
                         if (_accidentStep < seq.Length)
                         {
                             controlForm.DoLocalEvent(
@@ -586,9 +521,6 @@ namespace Alstom.MotionSeatPlugin
                 Console.WriteLine($"[ERROR] Update failed: {ex.Message}");
             }
         }
-
-        // champs à ajouter dans ta classe :
-        private int _accidentStep = 0;
 
         /// <summary>
         /// Called by the SelenaMotionBridge.

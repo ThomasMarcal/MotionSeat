@@ -43,8 +43,7 @@
     <StartupObject />
   </PropertyGroup>
   <PropertyGroup>
-    <ApplicationIcon>
-    </ApplicationIcon>
+    <ApplicationIcon>Icon_MotionSeat.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="CustomMessageBox">
@@ -209,6 +208,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Resources\Icon_MotionSeat.ico" />
+    <Content Include="Icon_MotionSeat.ico" />
     <Content Include="Resources\InterfaceMotionSeat.png" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
